@@ -471,7 +471,19 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        const API_URL = 'https://layout-ericsson-referred-estimates.trycloudflare.com/api/v2/search';
+        // Production URL (updated by publish_demo.py script)
+        const PRODUCTION_API_URL = 'https://videos-gmbh-fri-durable.trycloudflare.com/api/v1/search';
+
+        // Automatically detect environment and use appropriate API URL
+        const API_URL = (() => {
+            const hostname = window.location.hostname;
+            // Local development: use local backend
+            if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+                return 'http://localhost:8000/api/v1/search';
+            }
+            // Production: use cloudflare tunnel URL
+            return PRODUCTION_API_URL;
+        })();
 
         // Hardcoded user coordinates (Santiago de Compostela center)
         const USER_COORDS = {
