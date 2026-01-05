@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodAI Search Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #242424;
+            --accent: #22c55e;
+            --accent-dim: #16a34a;
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --border: #333;
+            --shadow: rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent) 0%, #4ade80 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Search Box */
+        .search-container {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .search-input {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .search-btn:active {
+            transform: translateY(0);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Meta info */
+        .meta-info {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-badge {
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .meta-badge span {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .filters-row label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .small-input {
+            width: 70px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem 0.5rem;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .small-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Results */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Map */
+        .map-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        #map {
+            width: 100%;
+            height: 400px;
+        }
+
+        /* Location Card */
+        .location-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .location-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px var(--shadow);
+        }
+
+        .location-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .location-info h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .location-address {
+            color: var(--accent);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .location-address a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .location-address a:hover {
+            text-decoration: underline;
+        }
+
+        .location-badge {
+            display: none;
+        }
+
+        /* Dishes */
+        .dishes-list {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .dish-item {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .dish-item:hover {
+            background: #2a2a2a;
+        }
+
+        .dish-info {
+            flex: 1;
+        }
+
+        .dish-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dish-desc {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dish-price {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--accent);
+        }
+
+        .vegan-badge {
+            background: #16a34a33;
+            color: #4ade80;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .score-badge {
+            color: #555;
+            font-size: 0.65rem;
+            font-weight: 400;
+            margin-top: 0.35rem;
+            font-family: monospace;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error */
+        .error {
+            background: #dc262633;
+            border: 1px solid #dc2626;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            color: #fca5a5;
+            margin-bottom: 1rem;
+        }
+
+        /* Debug Panel */
+        .debug-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-size: 0.8rem;
+        }
+
+        .debug-panel summary {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .debug-panel summary:hover {
+            color: var(--accent);
+        }
+
+        .debug-content {
+            padding: 0 1rem 1rem;
+        }
+
+        .debug-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .debug-section strong {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .debug-section pre {
+            background: var(--bg-card);
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 0.25rem;
+            overflow-x: auto;
+            color: #888;
+            font-family: monospace;
+            font-size: 0.75rem;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🍽️ FoodAI</h1>
+            <p>Busca comida con inteligencia artificial</p>
+        </header>
+
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput"
+                    placeholder="Ej: comida vegana hasta 10 euros..." value="comida vegana por menos de 10 euros">
+                <button class="search-btn" id="searchBtn" onclick="search()">
+                    Buscar
+                </button>
+            </div>
+            <div class="filters-row">
+                <label>Locations: <input type="number" id="limitInput" value="5" min="1" max="20"
+                        class="small-input"></label>
+                <label>Radius (m): <input type="number" id="radiusInput" value="2000" min="100" max="10000" step="100"
+                        class="small-input"></label>
+            </div>
+            <div class="meta-info" id="metaInfo" style="display: none;">
+                <div class="meta-badge">Tipo: <span id="queryType">-</span></div>
+                <div class="meta-badge">Resultados: <span id="totalDishes">-</span></div>
+                <div class="meta-badge">Tiempo: <span id="processingTime">-</span></div>
+                <div class="meta-badge">Re-ranking: <span id="reranked">-</span></div>
+            </div>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <!-- Debug Panel -->
+        <details class="debug-panel" id="debugPanel" style="display: none;">
+            <summary>🔧 Debug Info</summary>
+            <div class="debug-content">
+                <div class="debug-section">
+                    <strong>Request:</strong>
+                    <pre id="debugRequest"></pre>
+                </div>
+                <div class="debug-section">
+                    <strong>Interpreted Query:</strong>
+                    <pre id="debugInterpreted"></pre>
+                </div>
+            </div>
+        </details>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Buscando con IA...</p>
+        </div>
+
+        <!-- Map -->
+        <div class="map-container" id="mapContainer" style="display: none;">
+            <div id="map"></div>
+        </div>
+
+        <div id="results" class="results-container"></div>
+
+        <div id="emptyState" class="empty-state">
+            <div class="icon">🔍</div>
+            <p>Escribe algo para buscar deliciosa comida</p>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const API_URL = 'http://localhost:8000/api/v2/search';
+
+        // Hardcoded user coordinates (Santiago de Compostela center)
+        const USER_COORDS = {
+            latitude: 42.8802,
+            longitude: -8.5448
+        };
+
+        // Enter key triggers search
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') search();
+        });
+
+        // Load query from URL on page load
+        (function initFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const q = params.get('q');
+            const limit = params.get('limit');
+            const radius = params.get('radius');
+
+            if (q) document.getElementById('searchInput').value = q;
+            if (limit) document.getElementById('limitInput').value = limit;
+            if (radius) document.getElementById('radiusInput').value = radius;
+
+            // Auto-search if query in URL
+            if (q) search();
+        })();
+
+        // Save query to URL
+        function updateUrl(query, limit, radius) {
+            const url = new URL(window.location);
+            url.searchParams.set('q', query);
+            url.searchParams.set('limit', limit);
+            url.searchParams.set('radius', radius);
+            window.history.replaceState({}, '', url);
+        }
+
+        async function search() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const btn = document.getElementById('searchBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const emptyState = document.getElementById('emptyState');
+            const metaInfo = document.getElementById('metaInfo');
+            const error = document.getElementById('error');
+
+            // Reset UI
+            btn.disabled = true;
+            btn.textContent = 'Buscando...';
+            loading.style.display = 'block';
+            results.innerHTML = '';
+            emptyState.style.display = 'none';
+            error.style.display = 'none';
+            metaInfo.style.display = 'none';
+
+            try {
+                const limit = parseInt(document.getElementById('limitInput').value) || 5;
+                const radius = parseInt(document.getElementById('radiusInput').value) || 2000;
+
+                // Save to URL for page refresh persistence
+                updateUrl(query, limit, radius);
+
+                const requestBody = {
+                    query,
+                    limit,
+                    radius_meters: radius,
+                    ...USER_COORDS
+                };
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Error en la búsqueda');
+                }
+
+                const data = await response.json();
+                renderResults(data, requestBody);
+
+            } catch (err) {
+                error.textContent = '❌ ' + err.message;
+                error.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Buscar';
+                loading.style.display = 'none';
+            }
+        }
+
+        function renderResults(data, requestBody) {
+            const results = document.getElementById('results');
+            const metaInfo = document.getElementById('metaInfo');
+            const emptyState = document.getElementById('emptyState');
+
+            // Update debug panel
+            document.getElementById('debugPanel').style.display = 'block';
+            document.getElementById('debugRequest').textContent = JSON.stringify(requestBody, null, 2);
+            document.getElementById('debugInterpreted').textContent = data.interpreted_query || '-';
+
+            // Update meta info
+            document.getElementById('queryType').textContent = getTypeEmoji(data.query_type) + ' ' + data.query_type;
+            document.getElementById('totalDishes').textContent = data.total_dishes + ' platos';
+            document.getElementById('processingTime').textContent = data.processing_time_ms.toFixed(0) + 'ms';
+            document.getElementById('reranked').textContent = data.reranked ? '✅ Sí' : '❌ No';
+            metaInfo.style.display = 'flex';
+
+            if (!data.grouped_results || data.grouped_results.length === 0) {
+                emptyState.innerHTML = '<div class="icon">😕</div><p>No se encontraron resultados</p>';
+                emptyState.style.display = 'block';
+                updateMap([]);
+                return;
+            }
+
+            // Update map with results
+            updateMap(data.grouped_results);
+
+            results.innerHTML = data.grouped_results.map(group => `
+                <div class="location-card">
+                    <div class="location-header">
+                        <div class="location-info">
+                            <h3>📍 ${escapeHtml(group.location.name)} ${group.location.distance_meters ? `<span style="font-size: 0.8em; color: var(--text-secondary); font-weight: 400;">(${Math.round(group.location.distance_meters)}m)</span>` : ''}</h3>
+                            <div class="location-address">
+                                <a href="${getMapsDirectionsUrl(group.location)}" target="_blank">
+                                    ${group.location.address ? escapeHtml(group.location.address) : 'Sin dirección'}${group.location.city ? ', ' + escapeHtml(group.location.city) : ''}
+                                    🗺️
+                                </a>
+                            </div>
+                        </div>
+                        <div class="location-badge">${group.match_reason}</div>
+                    </div>
+                    <div class="dishes-list">
+                        ${group.dishes.map(dish => `
+                            <div class="dish-item">
+                                <div class="dish-info">
+                                    <div class="dish-name">
+                                        ${escapeHtml(dish.name)}
+                                        ${dish.is_vegan ? '<span class="vegan-badge">🌱 Vegano</span>' : ''}
+                                    </div>
+                                    <div class="dish-desc">${dish.description ? escapeHtml(dish.description) : ''}</div>
+                                    <div class="score-badge">${dish.similarity_score ? `similarity: ${(dish.similarity_score * 100).toFixed(1)}%` : ''} | match: ${group.match_reason}</div>
+                                </div>
+                                <div class="dish-price">${parseFloat(dish.price).toFixed(2)}€</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getTypeEmoji(type) {
+            const emojis = { dish: '🍕', location: '🏠', experience: '🎭' };
+            return emojis[type] || '🔍';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getMapsDirectionsUrl(location) {
+            // Generate Google Maps search URL to show restaurant place card
+            const query = encodeURIComponent(`${location.name}, ${location.address || ''}, ${location.city || 'Santiago de Compostela'}`);
+            return `https://www.google.com/maps/search/?api=1&query=${query}`;
+        }
+
+        // Map functionality
+        let map = null;
+        let markers = [];
+
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([USER_COORDS.latitude, USER_COORDS.longitude], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            // Add user location marker
+            L.marker([USER_COORDS.latitude, USER_COORDS.longitude], {
+                icon: L.divIcon({
+                    className: 'user-marker',
+                    html: '📍',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            }).addTo(map).bindPopup('Tu ubicación');
+        }
+
+        function updateMap(groupedResults) {
+            if (!groupedResults || groupedResults.length === 0) {
+                document.getElementById('mapContainer').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('mapContainer').style.display = 'block';
+            initMap();
+
+            // Clear previous markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            const bounds = L.latLngBounds([[USER_COORDS.latitude, USER_COORDS.longitude]]);
+
+            groupedResults.forEach((group, i) => {
+                const loc = group.location;
+                if (loc.latitude && loc.longitude && loc.latitude !== 0) {
+                    const marker = L.marker([loc.latitude, loc.longitude])
+                        .addTo(map)
+                        .bindPopup(`<b>${loc.name}</b><br>${loc.address || ''}`);
+                    markers.push(marker);
+                    bounds.extend([loc.latitude, loc.longitude]);
+                }
+            });
+
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    </script>
+</body>
+
+</html>
